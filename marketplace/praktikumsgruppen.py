@@ -79,8 +79,12 @@ class Praktikumsgruppen(dict):
             user_ids (list): A list of user IDs.
             groupnumbers (list): A list of group numbers corresponding to the user IDs.
         """
-        # TODO: implement in Praktikum 1
-        pass
+        if len(user_ids) != len(groupnumbers):
+            raise ValueError("Mismatched lengths: user_ids and groupnumbers must have the same number of elements.")
+
+            # Direktes Einfügen der Zuordnungen
+        for user_id, group_number in zip(user_ids, groupnumbers):
+            self[user_id] = group_number
 
     # *** PUBLIC GET methods ***
 
@@ -94,8 +98,11 @@ class Praktikumsgruppen(dict):
         Returns:
             list: A list of user IDs in the same group.
         """
-        # TODO: implement in Praktikum 1
-        pass
+        if user_id not in self:
+            raise KeyError(f"User ID '{user_id}' not found.")
+
+        group_number = self[user_id]
+        return [uid for uid, group in self.items() if group == group_number]
 
     # *** PUBLIC STATIC methods ***
 
