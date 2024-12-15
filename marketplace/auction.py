@@ -84,6 +84,7 @@ class Auction:
         :param bid_amount: amount in € that user wants to bid
         :return: True, if bid was placed successfully, else False
         """
+        user_wert = user.balance()
         if bid_amount > user.balance():         # has user enough money?
             return False
 

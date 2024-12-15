@@ -38,7 +38,7 @@ class Auctions(dict):
         except NotImplementedError:
             self._heap = None
 
-        # TODO: für 3. Praktikum: erstelle hier ein MaxHeap, um den besten User/Verkäufer mit der Methode
+        # TODO: für 2. Praktikum: erstelle hier ein MaxHeap, um den besten User/Verkäufer mit der Methode
         #  get_top_rated_user() (s.u.) in konstanter Zeit zurück geben zu können. auf der GUI gibt es noch keinen Button
         #  mit dem Sie andere Nutzer bewerten können. das wird alles simuliert in simulator.py. Sie können von jedem
         #  User über die Methode user.User.get_rating_stars_mean() die mittlere Anzahl Sterne abfragen.
@@ -118,6 +118,7 @@ class Auctions(dict):
 
     def get_time_left(self, auction_id):
         return self[auction_id].get_time_left()
+
 
     def get_auction_ends(self, auction_id):
         return self[auction_id].auction_ends()
