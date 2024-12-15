@@ -86,14 +86,14 @@ class MaxHeap:
             pop(auction_id) entfernt das Tuple aus der Hash-Map und gibt es zurück"""
         bid_count, index = self.auction_map.pop(auction_id)
         # Dies ersetzt das Element an der Position index im Heap mit dem Element an der letzten Position
-        self.heap[index] = self.heap[-1]
+       # self.heap[index] = self.heap[-1]
         # Nun wird das letzte Element entfernt (das ursprünglich das zu entfernende Element war)
-        self.heap.pop()
+        #self.heap.pop()
 
         """ Diese Bedingung stellt sicher, dass die Heapify-Operationen nur ausgeführt werden, wenn der Heap nach der Entfernung noch Elemente enthält
             Es könnte sein, dass der Heap nach dem Entfernen des letzten Elements leer ist dann müssen keine Heapify-Operationen durchgeführt werden"""
         if index < len(self.heap):
-            self._heapify_up(index)
+          #  self._heapify_up(index)
             self._heapify_down(index)
 
     # *** PUBLIC GET methods ***
