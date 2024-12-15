@@ -93,9 +93,18 @@ class Praktikumsgruppen(dict):
 
         Returns:
             list: A list of user IDs in the same group.
+
+        Raises:
+            ValueError: If the user_id is not found in any group.
         """
-        # TODO: implement in Praktikum 1
-        pass
+        if user_id not in self:
+            raise ValueError(f"Benutzer-ID {user_id} wurde keiner Gruppe zugeordnet.")
+
+        # Gruppennummer des Benutzers abrufen
+        user_group_number = self[user_id]
+
+        # Benutzer der gleichen Gruppe aus der group_map zurückgeben
+        return [uid for uid, group_number in self.items() if group_number == user_group_number]
 
     # *** PUBLIC STATIC methods ***
 
