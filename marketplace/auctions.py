@@ -26,17 +26,45 @@ class Auctions(dict):
         _stop_event (threading.Event): needed to stop simulator when user wants to close application
     """
 
+    def add_user_rating(self, seller_id: str, rating: int):
+        """
+        Allows users to rate a seller (1 to 5 stars).
+
+        Args:
+            seller_id (str): ID of the seller being rated.
+            rating (int): Rating value (1 to 5 stars).
+        """
+        if seller_id in self._users:
+            user = self._users[seller_id]
+            user.rate_user(rating)
+
+            # Update the MaxHeap with the new average rating
+            mean_rating = user.get_rating_stars_mean()
+            self._heap_users_rated.update(seller_id, mean_rating)
+
     # *** CONSTRUCTORS ***
     def __init__(self, csvfile, *args):
         super().__init__(self)
 
         self._id_next_auction = 0
 
-        # für erstes Praktikum auf None setzen und für 2. Praktikum auf MaxHeap()
         try:
-            self._heap = MaxHeap()  # None
+            self._heap = MaxHeap()  # For auctions with the most bids
         except NotImplementedError:
             self._heap = None
+
+        # Create a MaxHeap to store top-rated users
+        self._heap_users_rated = MaxHeap()
+
+        self._users = marketplace.users.Users("user.csv")
+
+        self._read_auctions_from_csvfile(csvfile)
+
+        self._place_random_bids(num_bids=10 * self._users.num_users())
+
+        self._my_simulator = marketplace.simulator.Simulator()
+
+        self._stop_event = threading.Event()
 
         # TODO: für 2. Praktikum: erstelle hier ein MaxHeap, um den besten User/Verkäufer mit der Methode
         #  get_top_rated_user() (s.u.) in konstanter Zeit zurück geben zu können. auf der GUI gibt es noch keinen Button
@@ -59,6 +87,26 @@ class Auctions(dict):
     # *** PUBLIC SET methods ***
 
     # *** PUBLIC methods ***
+    def start_top_rated_user_notifications(self):
+        """
+        Periodically logs the top-rated user every 30 seconds.
+        """
+
+        def notify():
+            if self._stop_event.is_set():
+                return
+
+            top_user = self.get_top_rated_user(with_num_stars=True)
+            if top_user:
+                mean_stars, user_id = top_user
+                print(
+                    f"System Message: Top-rated seller is {user_id} with an average rating of {mean_stars:.2f} stars.")
+
+            timer = threading.Timer(30, notify)
+            timer.start()
+            self._timer = timer
+
+        notify()
 
     def add_new_auction(self, user_id: str, item_name: str, description="", value_min=1):
         """
@@ -225,14 +273,24 @@ class Auctions(dict):
             # empfehle max_auction an user
             self[max_auction].recommend2user(user_id)
 
-    def get_top_auction(self, with_num_bids=False):
+    def get_top_rated_user(self, with_num_stars=False):
+        """
+        Returns user ID of the top-rated user, leveraging the MaxHeap for efficiency.
 
-        if not self._heap:
+        Args:
+            with_num_stars (bool): If True, return stars together with user_id.
+
+        Returns:
+            str or tuple: User ID of the top-rated user, or (average_stars, user_id) if with_num_stars is True.
+        """
+        if not self._heap_users_rated:
             return None
-        if with_num_bids:
-            return self._heap.get_auction_with_max_bidders()
+
+        top_user = self._heap_users_rated.get_top_user()
+        if with_num_stars:
+            return top_user  # Returns (mean_stars, user_id)
         else:
-            return self._heap.get_auction_with_max_bidders()[1]
+            return top_user[1]  # Returns only user_id
 
     # TODO: in 3. Praktikum: nutze diese Methode und passe diese evtl. an
     def get_top_rated_user(self, with_num_stars=False):
@@ -273,6 +331,25 @@ class Auctions(dict):
         return auctions_active
 
     # *** PUBLIC STATIC methods ***
+    def get_top_auction(self, with_num_bids=False):
+        """
+        Returns the auction with the highest number of bidders.
+
+        Args:
+            with_num_bids (bool): If True, returns a tuple (num_bids, auction_id).
+                                  If False, returns only the auction_id.
+
+        Returns:
+            str or tuple: Auction ID or (number of bids, auction ID).
+        """
+        if not self._heap:
+            return None
+
+        top_auction = self._heap.get_auction_with_max_bidders()
+        if with_num_bids:
+            return top_auction  # Returns (num_bids, auction_id)
+        else:
+            return top_auction[1]  # Returns only auction_id
 
     @staticmethod
     def sort_time_left(auctions_dict):
