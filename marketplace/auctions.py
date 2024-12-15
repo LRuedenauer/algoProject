@@ -119,6 +119,7 @@ class Auctions(dict):
     def get_time_left(self, auction_id):
         return self[auction_id].get_time_left()
 
+
     def get_auction_ends(self, auction_id):
         return self[auction_id].auction_ends()
 
