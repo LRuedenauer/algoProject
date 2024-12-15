@@ -1,5 +1,3 @@
-# Die Klasse Auctions speichert alle Auktionen in einem Dictionary
-
 import marketplace.auction
 import marketplace.item
 import marketplace.users
@@ -10,10 +8,6 @@ import threading
 import csv
 
 
-# wenn man nur produkte ersteigern möchte, die in einem
-# preissegment sind, dann AVL-Baum sinnvoll. am besten dann alle Auktionen sowohl in Hashtabelle als auch in
-# AVL Baum speichern und je nachdem ob preissegment-filter in gui genutzt wird (müsste noch hinzugefügt
-# werden zu gui), nutzt man entweder AVL-Baum oder Hashtabelle.
 class Auctions(dict):
     """
     Class representing a dictionary of auctions
@@ -24,25 +18,21 @@ class Auctions(dict):
         _users (marketplace.users.Users): contains all users of the platform
         _my_simulator (marketplace.simulator.Simulator): simulates other users selling and buying stuff
         _stop_event (threading.Event): needed to stop simulator when user wants to close application
+        _heap_users_rated (marketplace.max_heap.MaxHeap): tracks the top-rated users efficiently
     """
 
-    # *** CONSTRUCTORS ***
     def __init__(self, csvfile, *args):
         super().__init__(self)
 
         self._id_next_auction = 0
 
-        # für erstes Praktikum auf None setzen und für 2. Praktikum auf MaxHeap()
         try:
-            self._heap = MaxHeap()  # None
+            self._heap = MaxHeap()
         except NotImplementedError:
             self._heap = None
 
-        # TODO: für 3. Praktikum: erstelle hier ein MaxHeap, um den besten User/Verkäufer mit der Methode
-        #  get_top_rated_user() (s.u.) in konstanter Zeit zurück geben zu können. auf der GUI gibt es noch keinen Button
-        #  mit dem Sie andere Nutzer bewerten können. das wird alles simuliert in simulator.py. Sie können von jedem
-        #  User über die Methode user.User.get_rating_stars_mean() die mittlere Anzahl Sterne abfragen.
-        self._heap_users_rated = None
+        # Create a MaxHeap to store top-rated users
+        self._heap_users_rated = MaxHeap()
 
         self._users = marketplace.users.Users("user.csv")
 
@@ -53,12 +43,6 @@ class Auctions(dict):
         self._my_simulator = marketplace.simulator.Simulator()
 
         self._stop_event = threading.Event()
-
-        # self._start_simulator()
-
-    # *** PUBLIC SET methods ***
-
-    # *** PUBLIC methods ***
 
     def add_new_auction(self, user_id: str, item_name: str, description="", value_min=1):
         """
@@ -77,6 +61,57 @@ class Auctions(dict):
         self[auction_id] = auction
 
         return auction
+
+    def add_user_rating(self, seller_id: str, rating: int):
+        """
+        Allows users to rate a seller (1 to 5 stars).
+
+        :param seller_id: ID of the seller being rated
+        :param rating: Rating value (1 to 5 stars)
+        """
+        if seller_id in self._users:
+            user = self._users[seller_id]
+            user.add_rating(rating)
+
+            # Update the MaxHeap with the new rating
+            mean_rating = user.get_rating_stars_mean()
+            self._heap_users_rated.update(seller_id, mean_rating)
+
+    def get_top_rated_user(self, with_num_stars=False):
+        """
+        Returns user ID of the top-rated user, leveraging the MaxHeap for efficiency.
+        :param with_num_stars: If True, return stars together with user_id.
+        :return:
+        """
+        if not self._heap_users_rated:
+            return None
+
+        top_user = self._heap_users_rated.get_top_user()
+        if with_num_stars:
+            return top_user  # Returns (mean_stars, user_id)
+        else:
+            return top_user[1]  # Returns only user_id
+
+    def start_top_rated_user_notifications(self):
+        """
+        Periodically logs the top-rated user every 30 seconds.
+        """
+
+        def notify():
+            if self._stop_event.is_set():
+                return
+
+            top_user = self.get_top_rated_user(with_num_stars=True)
+            if top_user:
+                mean_stars, user_id = top_user
+                print(
+                    f"System Message: Top-rated seller is {user_id} with an average rating of {mean_stars:.2f} stars.")
+
+            timer = threading.Timer(30, notify)
+            timer.start()
+            self._timer = timer
+
+        notify()
 
     def bid_in_auction(self, auction_id, user, bid_amount):
         if auction_id in self:
@@ -108,13 +143,10 @@ class Auctions(dict):
         if self._heap is not None:
             self._heap.remove(key)
 
-    # wird bei self[auction_id] = auction aufgerufen
     def __setitem__(self, key, value):
         super().__setitem__(key, value)
         if self._heap is not None:
             self._heap.add_auction(value.id(), value.bid_count())
-
-    # *** PUBLIC GET methods ***
 
     def get_time_left(self, auction_id):
         return self[auction_id].get_time_left()
@@ -181,10 +213,6 @@ class Auctions(dict):
         return self[auction_id].get_last_bid()
 
     def get_auctions_friends_offer(self, user_id: str):
-        """
-
-        :param user_id:
-        """
         friends = self._users[user_id].friends()
         friends_auctions = {}
 
@@ -199,14 +227,9 @@ class Auctions(dict):
         if friends_auctions:  # friends_actions could also be empty, then max throws an error
             max_auction = max(friends_auctions, key=friends_auctions.get)
 
-            # empfehle max_auction an user
             self[max_auction].recommend2user(user_id)
 
     def get_auctions_friends_bid_in(self, user_id: str):
-        """
-
-        :param user_id:
-        """
         friends = self._users[user_id].friends()
         friends_auctions = {}
 
@@ -221,7 +244,6 @@ class Auctions(dict):
         if friends_auctions:  # friends_actions could also be empty, then max throws an error
             max_auction = max(friends_auctions, key=friends_auctions.get)
 
-            # empfehle max_auction an user
             self[max_auction].recommend2user(user_id)
 
     def get_top_auction(self, with_num_bids=False):
@@ -233,36 +255,6 @@ class Auctions(dict):
         else:
             return self._heap.get_auction_with_max_bidders()[1]
 
-    # TODO: in 3. Praktikum: nutze diese Methode und passe diese evtl. an
-    def get_top_rated_user(self, with_num_stars=False):
-        """
-        Returns user ID of user that got the highest rating of other users
-        :param with_num_stars: if True, then return stars together with user_id, else only return user_id
-        :return:
-        """
-        # TODO: do not use this part
-        # stupid brute force implementation
-        max_user = None
-        max_stars = 0
-        for user_id, user in self._users.items():
-            stars_mean = user.get_rating_stars_mean()
-            if stars_mean > max_stars:
-                max_stars = stars_mean
-                max_user = user_id
-
-        if with_num_stars:
-            return [max_stars, max_user]
-        else:
-            return max_user
-
-        # TODO: instead use and probably change this
-        # if not self._heap_users_rated:
-        #     return None
-        # if with_num_stars:
-        #     return self._heap_users_rated.get_top_user()
-        # else:
-        #     return self._heap_users_rated.get_top_user()[1]
-
     def get_active_auctions(self):
         auctions_active = {}
         for auction_id, auction in self.items():
@@ -271,16 +263,11 @@ class Auctions(dict):
 
         return auctions_active
 
-    # *** PUBLIC STATIC methods ***
-
     @staticmethod
     def sort_time_left(auctions_dict):
-        # Sortiere das dict nach _time_left der Items in absteigender Reihenfolge
         auctions_dict_sorted = dict(sorted(auctions_dict.items(), key=lambda x: x[1].auction_ends(), reverse=False))
 
         return auctions_dict_sorted
-
-    # *** PRIVATE methods ***
 
     def _new_auction(self, user_id, item):
         auction_id = self._create_new_auction_id()
@@ -299,40 +286,29 @@ class Auctions(dict):
 
         with open(csvfile, newline='', encoding='utf-8-sig') as csvfile:
             csvreader = csv.reader(csvfile)
-            # Skip header row
             next(csvreader)
 
             for row in csvreader:
                 item_name, description, user_id, value_min = row
 
-                # self.add_new_auction(user_id, item_name, description, float(value_min))
                 item = marketplace.item.Item(item_name, description, float(value_min))
                 auction, auction_id = self._new_auction(user_id, item)
 
                 auctions[auction_id] = auction
 
-        auctions = marketplace.auctions.Auctions.sort_time_left(auctions)
+        auctions = self.sort_time_left(auctions)
 
         for auction in auctions:
             self[auction] = auctions[auction]
 
     def _place_random_bids(self, num_bids=10, user_ids=None, show_message=False, current_user_id=None):
-        """
-
-        :param num_bids:
-        :param user_ids:
-        :param show_message:
-        :param current_user_id:
-        """
         if user_ids is None:
             user_ids = list(self._users.keys())
 
-        # biete nur auf solche Auktionen die noch nicht beendet sind!
         auctions_active = self.get_active_auctions()
 
         auction_ids = list(auctions_active)
 
-        # Sicherstellen, dass es genügend Auktionen gibt, um 10 zufällige Gebote zu platzieren
         if len(auction_ids) < num_bids:
             raise ValueError(f"Nicht genügend Auktionen vorhanden, um {num_bids} zufällige Gebote zu platzieren.")
 
@@ -342,7 +318,7 @@ class Auctions(dict):
 
             min_bid = self.get_item_value_min(random_auction)
 
-            random_bid = min_bid + random.randint(1, 50)  # Zufälliger Betrag über dem Mindestgebot
+            random_bid = min_bid + random.randint(1, 50)
             self.bid_in_auction(random_auction, self._users[random_user], random_bid)
 
             if show_message:
@@ -367,12 +343,6 @@ class Auctions(dict):
         self._timer = timer
 
     def _set_purchaser_id(self, auction_id):
-        """
-
-        :param auction_id:
-        :return:
-        """
-        # setze Verkäufer
         purchaser_id = self[auction_id].set_purchaser_id()
         seller_id = self[auction_id].seller_id()
         highest_bid = self[auction_id].get_highest_bid()
@@ -380,33 +350,22 @@ class Auctions(dict):
         if self._heap is not None:
             self._heap.remove(auction_id)
 
-        # purchaser_id kann auch "Kein Bieter" oder None sein.
         if purchaser_id in self._users:
-            # dem Verkäufer wird der Verkaufspreis überwiesen
             self._users[seller_id].increase_balance(highest_bid)
 
-            # muss allen Aktionären, die nicht gewonnen haben das Geld zurückerstatten,
-            # da dieses bereits beim Bieten von Balance abgezogen wurde, oder ich verkleinere balance
-            # erst beim Verkauf. führt dazu, dass man Schulden machen könnte
             for (bid_of_user, user_id) in self[auction_id].users_bidding():
                 if user_id != purchaser_id:
-                    # print(bid_of_user, user_id)
-                    # minus sign, da Angebot negativ ist, wg. min-heap
                     self._users[user_id].increase_balance(-bid_of_user)
 
             return True
-        else:  # dann ist Auktion ausgelaufen, aber es gab keinen Käufer
+        else:
             return False
-
-    # ...............
 
     def handle_expired_auction(self, auction_id):
         if not self[auction_id].sold():
             return self._set_purchaser_id(auction_id)
         else:
             return False
-
-    # *** PUBLIC methods to return class properties ***
 
     def id_next_auction(self):
         return self._id_next_auction
