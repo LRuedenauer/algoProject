@@ -100,9 +100,18 @@ class User(marketplace.praktikumsgruppen.SetNode):
         self._friends.remove(friend_id)
 
     def rate_user(self, stars: int):
-        self._rating_stars.append(stars)
+        """
+        Adds a rating to the user.
 
-    # *** PUBLIC GET methods ***
+        Args:
+            stars (int): The number of stars (1 to 5).
+        """
+        if 1 <= stars <= 5:
+            self._rating_stars.append(stars)
+        else:
+            raise ValueError("Rating must be between 1 and 5.")
+
+     #*** PUBLIC GET methods ***
 
     def pretty_print(self):
         return "ID: {0} Name: {1} Wohnort: {2}".format(self._id.ljust(15), self.name(),
