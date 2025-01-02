@@ -162,18 +162,43 @@ class Users(marketplace.praktikumsgruppen.Praktikumsgruppen):
 
     def are_users_connected(self, user_id1, user_id2, degree=3):
         """
-        :param user_id1: a user that we are searching a friend for
-        :param user_id2: another user, where we want to check whether it is somehow friends with user_id1 over some
-        other shared friends
-        :param degree: only look for possible friend connections up to this degree of friendship
-        :return: True, if user_id1 and user_id2 are friends over some edges up to the given degree, else False
+        Überprüft, ob zwei Benutzer bis zu einem bestimmten Grad über das Freundesnetzwerk verbunden sind.
+
+        :param user_id1: ID des ersten Benutzers.
+        :param user_id2: ID des zweiten Benutzers.
+        :param degree: Maximale Anzahl von Verbindungsebenen.
+        :return: True, wenn die Benutzer verbunden sind, sonst False.
         """
         if user_id1 not in self or user_id2 not in self:
-            return False
+            raise ValueError("Einer oder beide Benutzer existieren nicht im Netzwerk.")
 
-        # TODO for students: Implement this method
+        if user_id1 == user_id2:
+            return True  # Ein Benutzer ist immer mit sich selbst verbunden
 
-        return False
+        from collections import deque
+
+        # BFS (Breadth-First Search) für die Suche
+        queue = deque([(user_id1, 0)])  # Starte mit dem ersten Benutzer, Grad 0
+        visited = set()  # Vermeide doppelte Besuche
+
+        while queue:
+            current_user, current_degree = queue.popleft()
+
+            # Wenn der maximale Grad überschritten ist, breche ab
+            if current_degree >= degree:
+                continue
+
+            friends = self[current_user].friends()
+
+            for friend in friends:
+                if friend == user_id2:
+                    return True  # Verbindung gefunden
+                if friend not in visited:
+                    visited.add(friend)
+                    queue.append((friend, current_degree + 1))  # Erhöhe den Grad um 1
+
+        return False  # Keine Verbindung gefunden
+
     # HINZUGEFÜGT
     def all_user_ids(self):
         """Gibt eine Liste aller Nutzer-IDs zurück."""
