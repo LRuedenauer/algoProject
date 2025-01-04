@@ -115,43 +115,90 @@ class Users(marketplace.praktikumsgruppen.Praktikumsgruppen):
 
     def suggest_friends(self, user_id, num_common_friends=2, distance_threshold=0.1, pretty_print=True):
         """
-        Suggests users to the given user_id that
-        (1) are friends with at least num_common_friends friends of user_id or
-        (2) that live nearby the given user_id (closer as distance_threshold) and are friends of friends of friends...
-        (see are_users_connected())
+        Suggests friends for a given user based on:
+        1. Users who share at least num_common_friends mutual friends.
+        2. Users who are geographically close within distance_threshold.
 
-        :param user_id: usually the current user id
-        :param num_common_friends: only suggest users that are at least friends with two of the user_ids friends
-        :param distance_threshold: only suggest users that live closer to the given user_id as this threshold value
-        :param pretty_print: if True, then call pretty_print() on all suggested friends before returning them
-        :return: list of suggested friends. the first part of the list should contain common friends, ordered
-        so that users with maximum number of common friends appear first. the second part of the list should
-        contain all users that live close by, again sorted, so that the direct neighbour comes first.
+        :param user_id: ID of the user to suggest friends for.
+        :param num_common_friends: Minimum number of mutual friends for suggestions.
+        :param distance_threshold: Maximum distance for geographic suggestions.
+        :param pretty_print: If True, returns pretty-printed user details.
+        :return: List of suggested friend user IDs or pretty-printed details.
         """
+        if user_id not in self:
+            raise ValueError("User ID not found in the user list.")
+
+        #Gemeinsame Freunde analysieren
         mutual_friends_count = self.get_mutual_friends(user_id)
-        # TODO for students: Implement this method by filling the list suggested_friends
+        suggested_by_friends = [
+            (friend_id, count) for friend_id, count in mutual_friends_count.items()
+            if count >= num_common_friends
+        ]
+        suggested_by_friends.sort(key=lambda x: x[1], reverse=True)  # Sortiere nach Anzahl gemeinsamer Freunde
 
+        #Geografische Nähe analysieren
+        user_location = self[user_id].gps_coords()
+        suggested_by_distance = []
+        for other_user_id in self.all_user_ids():
+            if other_user_id != user_id and other_user_id not in self[user_id].friends():
+                distance = self.calc_distance_between_users(user_id, other_user_id)
+                if distance <= distance_threshold:
+                    suggested_by_distance.append((other_user_id, distance))
+        suggested_by_distance.sort(key=lambda x: x[1])  # Sortiere nach Distanz (nächster zuerst)
+
+        #Kombiniere die beiden Listen, ohne Duplikate
         suggested_friends = []
+        suggested_friends.extend([friend_id for friend_id, _ in suggested_by_friends])
+        suggested_friends.extend([
+            friend_id for friend_id, _ in suggested_by_distance
+            if friend_id not in suggested_friends
+        ])
 
+        #Pretty-Print (optional)
         if pretty_print:
-            suggested_friends = [self[friend].pretty_print() for friend in suggested_friends]
+            return [self[friend_id].pretty_print() for friend_id in suggested_friends]
 
         return suggested_friends
 
     def are_users_connected(self, user_id1, user_id2, degree=3):
         """
-        :param user_id1: a user that we are searching a friend for
-        :param user_id2: another user, where we want to check whether it is somehow friends with user_id1 over some
-        other shared friends
-        :param degree: only look for possible friend connections up to this degree of friendship
-        :return: True, if user_id1 and user_id2 are friends over some edges up to the given degree, else False
+        Überprüft, ob zwei Benutzer bis zu einem bestimmten Grad über das Freundesnetzwerk verbunden sind.
+
+        :param user_id1: ID des ersten Benutzers.
+        :param user_id2: ID des zweiten Benutzers.
+        :param degree: Maximale Anzahl von Verbindungsebenen.
+        :return: True, wenn die Benutzer verbunden sind, sonst False.
         """
         if user_id1 not in self or user_id2 not in self:
-            return False
+            raise ValueError("Einer oder beide Benutzer existieren nicht im Netzwerk.")
 
-        # TODO for students: Implement this method
+        if user_id1 == user_id2:
+            return True  # Ein Benutzer ist immer mit sich selbst verbunden
 
-        return False
+        from collections import deque
+
+        # BFS (Breadth-First Search) für die Suche
+        queue = deque([(user_id1, 0)])  # Starte mit dem ersten Benutzer, Grad 0
+        visited = set()  # Vermeide doppelte Besuche
+
+        while queue:
+            current_user, current_degree = queue.popleft()
+
+            # Wenn der maximale Grad überschritten ist, breche ab
+            if current_degree >= degree:
+                continue
+
+            friends = self[current_user].friends()
+
+            for friend in friends:
+                if friend == user_id2:
+                    return True  # Verbindung gefunden
+                if friend not in visited:
+                    visited.add(friend)
+                    queue.append((friend, current_degree + 1))  # Erhöhe den Grad um 1
+
+        return False  # Keine Verbindung gefunden
+
     # HINZUGEFÜGT
     def all_user_ids(self):
         """Gibt eine Liste aller Nutzer-IDs zurück."""
