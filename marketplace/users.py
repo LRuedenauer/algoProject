@@ -67,7 +67,7 @@ class Users(marketplace.praktikumsgruppen.Praktikumsgruppen):
 
     def get_user_pretty_print_for_list(self, user_id):
         return (self[user_id].pretty_print() + "\t in Praktikumsgruppe repräsentiert durch: " +
-                self.find_byid(user_id, True))
+                str(self.find_byid(user_id, True)))
 
     def get_friends_andgroupmembers_pretty_print(self, user_id):
         """
