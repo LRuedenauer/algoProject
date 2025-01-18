@@ -109,10 +109,10 @@ class Praktikumsgruppen(dict):
         user = self[user_id] # SetNode-Objekt abrufen
         root = self.find(user) # Root-Knoten finden
 
-        if return_id:
-            return id(root)
+        if return_id:           # true
+            return root.id()    # user id des Wurzelknotens (root) wird zurückgegeben
         else:
-            return root
+            return root         # der gesamte Wurzelknoten wird zurückgegeben
 
     # hinzugefügt
     def union(self, user_id1, user_id2):
@@ -164,10 +164,10 @@ class Praktikumsgruppen(dict):
         # Initialisiert die Benutzer und ordnet die Gruppen zu
         group_map = {}  # Mappt Gruppennummern auf Wurzel-IDs
 
-        for user_id, group_id in zip(user_ids, groupnumbers):
+        for user_id, group_id in zip(user_ids, groupnumbers): # zip 2 Listen werden parallel durchlaufen
             # Benutzer werden initialisiert, falls sie nicht vorhanden sind
             if user_id not in self:
-                self[user_id] = SetNode()
+                self[user_id] = SetNode() # neuer Eintrag im dictionary
 
             # Prüft, ob die Gruppe bereits existiert
             if group_id in group_map:
@@ -207,7 +207,7 @@ class Praktikumsgruppen(dict):
         for user_id, set_node in self.items():  # Schleife über die Items (user_id und SetNode)
             # Findet für jeden Benutzer seine Wurzel und vergleicht sie mit der des angegebenen Benutzers
             if self.find_byid(user_id, return_id=True) == parent_id:
-                groupmember_ids.append(user_id)
+                groupmember_ids.append(user_id) # append fügt am Ende der Liste user id hinzu
 
 
 
