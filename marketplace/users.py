@@ -9,6 +9,8 @@
 import csv
 import marketplace.user
 import marketplace.praktikumsgruppen
+from typing import List
+from marketplace.distance_calculator import DistanceCalculator
 
 
 class Users(marketplace.praktikumsgruppen.Praktikumsgruppen):
@@ -247,6 +249,10 @@ class Users(marketplace.praktikumsgruppen.Praktikumsgruppen):
                 for friend in friends:  # gehe alle Freunde durch und füge user_id ebenfalls als Freund hinzu
                     self[friend].friends_add(user_id)
 
+    def get_friend_recommendations(self, user_id: str) -> List[str]:
+        if not hasattr(self, '_distance_calculator'):
+            self._distance_calculator = DistanceCalculator()
+        return self._distance_calculator.find_nearby_friends_of_friends(user_id, self)
     # *** PUBLIC methods to return class properties ***
 
     # *** PRIVATE variables ***

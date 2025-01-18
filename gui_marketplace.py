@@ -5,8 +5,6 @@
 import tkinter as tk
 import threading
 
-
-
 from auctionapp_init import AuctionAppInit
 
 
@@ -88,6 +86,14 @@ class AuctionApp(AuctionAppInit):
                             "Die Auktion für {0} wurde gerade beendet, allerdings wurde Ihr Angebot überboten.".format(
                                 auction.get_item_name()))
 
+    def show_friend_recommendations(self):
+        if self._current_user:
+            recommendations = self._users.get_friend_recommendations(self._current_user.id())
+            recommendation_text = "Freundesempfehlungen in Ihrer Nähe:\n"
+            for user_id in recommendations[:5]:  # Zeige die 5 nächsten an
+                user = self._users[user_id]
+                recommendation_text += f"- {user.name()} aus {user.city()}\n"
+            self.system_messages.push(recommendation_text)
     # *** ... ***
 
 

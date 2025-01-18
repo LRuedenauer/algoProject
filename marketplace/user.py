@@ -162,4 +162,7 @@ class User(marketplace.praktikumsgruppen.SetNode):
     def address(self):
         return self._address
 
+    def get_coordinates(self):
+        """Gibt die Koordinaten des Nutzers zurück"""
+        return (self._latitude, self._longitude)
     # *** PRIVATE variables ***
